@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getPendingInvites, respondInvite } from "../../services/api";
+import { getPendingInvites, respondInvite, loadInvites } from "../../services/api";
 import './family.css';
 
 export default function FamilyInvitations() {
@@ -19,11 +19,13 @@ export default function FamilyInvitations() {
     const handleResponse = async (inviteToken, action) => {
         try {
             const res = await respondInvite(token, inviteToken, action);
+            const message = res.message || res.status || `Invitation ${action}ed successfully.`;
             alert(res.message);
             loadInvites();
         } catch (err) {
             console.error(err);
-            alert("Failed to respond");
+            const errorMsg  = err.message || "Failed to respond";
+            alert(`Error responding to invitation: ${errorMsg}`);
         }
     };
 

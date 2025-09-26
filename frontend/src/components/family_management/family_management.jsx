@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./family_management.css";
-import { getFamilyMembers, sendInvitation } from "../../services/api";
+import { getFamilyMembers, sendFamilyInvite } from "../../services/api";
 import { useNavigate } from "react-router-dom";
 
 export default function FamilyManagement() {
@@ -37,7 +37,7 @@ export default function FamilyManagement() {
     }
     try {
       const token = sessionStorage.getItem("token");
-      const data = await sendInvitation(token, email, relationship);
+      const data = await sendFamilyInvite(token, email, relationship);
       alert(data.msg || "Invitation sent!");
       setEmail("");
       setRelationship("");

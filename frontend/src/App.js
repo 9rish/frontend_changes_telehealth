@@ -8,6 +8,7 @@ import Chat from './components/chat/chat';
 import FamilyDashboard from './components/family_dashboard/family_dashboard';
 import FamilyInvitation from './components/invitation/family_invitation';
 import SendFamilyInvite from './components/invitation/send_family_invite';
+import DoctorAppointment from "./components/doctor_appointment/doctor_appointment";
 
 function App() {
   return (
@@ -16,12 +17,13 @@ function App() {
         <Route path="/login" element={<LoginSignup />} />
         <Route path="/" element={<PatientDashboard />} />
         <Route path="/family_management" element={<FamilyManagement />} />
-        <Route path="/family_dashboard" element={<FamilyDashboard />} />
+        <Route path="/family-dashboard" element={<FamilyDashboard />} />
         <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/chat-room" element={<ChatRoom />} />
         <Route path="/family/invitations" element={<FamilyInvitation />} />
         <Route path="/family/send-invite" element={<SendFamilyInvite />} />
+        <Route path="/doctor-appointments" element={<DoctorAppointment />} />
       </Routes>
     </Router>
   );

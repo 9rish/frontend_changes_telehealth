@@ -167,18 +167,18 @@ export async function getFamilyMembers(token) {
   return res.json();
 }
 
-export async function sendInvitation(token, email, relationship_type) {
-  const res = await fetch(`${API_BASE_URL}/family/send_invitation`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, relationship_type }),
-  });
-  if (!res.ok) throw new Error("Failed to send invitation");
-  return res.json();
-}
+// export async function sendInvitation(token, email, relationship_type) {
+//   const res = await fetch(`${API_BASE_URL}/family/send_invitation`, {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify({ email, relationship_type }),
+//   });
+//   if (!res.ok) throw new Error("Failed to send invitation");
+//   return res.json();
+// }
 
 export async function getChatMessages(chatId, token) {
   const res = await fetch(`${API_BASE_URL}/chats/${chatId}/messages`, {
@@ -235,22 +235,9 @@ export async function respondInvite(token, inviteToken, action) {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ token: inviteToken, action })
+        body: JSON.stringify({ token: inviteToken, action: action })
     });
     if (!res.ok) throw new Error("Failed to respond to invitation");
-    return res.json();
-}
-
-export async function sendFamilyInvite(token, email, relationship) {
-    const res = await fetch(`${API_BASE_URL}/family/send_invitation`, {
-        method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ invitee_email: email, relationship_type: relationship })
-    });
-    if (!res.ok) throw new Error("Failed to send invitation");
     return res.json();
 }
 
@@ -292,4 +279,46 @@ export const addPatientVitals = async (patient_email, bp) => {
         body: JSON.stringify({ patient_email, bp })
     });
     return handleResponse(res);
+};
+
+export const getAllAppointments = async () => {
+    const token = sessionStorage.getItem("token");
+    const res = await fetch(`${API_BASE_URL}/get_all_appointments`, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+    return handleResponse(res);
+};
+
+export const respondToAppointment = async (appointment_id, action) => {
+    const token = sessionStorage.getItem("token");
+    const res = await fetch(`${API_BASE_URL}/appointment_response`, {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ appointment_id, action })
+    });
+    return handleResponse(res);
+};
+
+// api.js (required addition)
+
+
+export const sendFamilyInvite = async (token, invitee_email, relationship_type) => {
+    // Assuming the backend endpoint is '/family/send_invite' or similar
+    const res = await fetch(`${API_BASE_URL}/family/send_invitation`, { 
+        method: "POST",
+        headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+        },
+        // The payload must match the InvitationRequest schema (invitee_email, relationship_type)
+        body: JSON.stringify({ 
+            invitee_email: invitee_email, 
+            relationship_type: relationship_type 
+        })
+    });
+    return handleResponse(res); 
+    // Assuming handleResponse is a helper that throws an error on !res.ok
 };
