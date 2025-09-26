@@ -1,0 +1,141 @@
+/* patient_dashboard.css */
+
+/* General page styling */
+.patient-dashboard {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f6f8;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Header */
+.patient-dashboard header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.patient-dashboard header h2 {
+    font-size: 2rem;
+    color: #333;
+}
+
+/* Container for cards */
+.patient-dashboard .container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+/* Card styling */
+.patient-dashboard .card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.patient-dashboard .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Card headings */
+.patient-dashboard .card h3 {
+    margin-bottom: 15px;
+    color: #007bff;
+}
+
+/* Buttons inside cards */
+.patient-dashboard .card button {
+    padding: 10px 15px;
+    margin: 5px 0;
+    border: none;
+    border-radius: 6px;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.patient-dashboard .card button:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+/* Logout button special */
+.patient-dashboard .card button:last-child {
+    background-color: #dc3545;
+}
+
+.patient-dashboard .card button:last-child:hover {
+    background-color: #a71d2a;
+}
+
+/* Modal styling */
+.patient-dashboard .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.patient-dashboard .modal-content {
+    background: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.patient-dashboard .modal-content h2 {
+    margin-bottom: 20px;
+    color: #007bff;
+}
+
+.patient-dashboard .modal-content .close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.patient-dashboard .modal-content .close:hover {
+    color: #007bff;
+}
+
+/* Vitals cards inside modal */
+.patient-dashboard .vital-card {
+    background-color: #f1f3f6;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 4px solid #007bff;
+}
+
+.patient-dashboard .vital-card p {
+    margin: 5px 0;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+    .patient-dashboard .container {
+        grid-template-columns: 1fr;
+    }
+}

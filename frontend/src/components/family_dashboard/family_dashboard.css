@@ -1,0 +1,100 @@
+header {
+    background: #1976d2;
+    color: #fff;
+    padding: 15px;
+    text-align: center;
+}
+
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+    background: #125aa1;
+}
+
+.dashboard-page {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f9f9f9, #e3f2fd);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 20px 30px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.6s ease-in-out;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.member {
+    background: #f5f9ff;
+    border-left: 6px solid #1976d2;
+    padding: 15px 20px;
+    margin: 12px 0;
+    border-radius: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.member:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+}
+
+.member p {
+    margin: 0;
+    font-size: 1rem;
+    color: #444;
+}
+
+.member b {
+    color: #1976d2;
+}
+
+.member i {
+    color: #666;
+}
+
+button {
+    display: block;
+    margin: 20px auto 0 auto;
+    padding: 10px 15px;
+    border: none;
+    background: #1976d2;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #125aa1;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
