@@ -9,6 +9,7 @@ import FamilyDashboard from './components/family_dashboard/family_dashboard';
 import FamilyInvitation from './components/invitation/family_invitation';
 import SendFamilyInvite from './components/invitation/send_family_invite';
 import DoctorAppointment from "./components/doctor_appointment/doctor_appointment";
+import CreateAppointment from "./components/create_appointment/create_appointment";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/family/invitations" element={<FamilyInvitation />} />
         <Route path="/family/send-invite" element={<SendFamilyInvite />} />
         <Route path="/doctor-appointments" element={<DoctorAppointment />} />
+        <Route path="/create_appointment" element={<CreateAppointment />} />
       </Routes>
     </Router>
   );

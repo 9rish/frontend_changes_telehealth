@@ -1,4 +1,5 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL_without_http = "127.0.0.1:8000"; 
 export { API_BASE_URL };
     
 export const login = async (email, password) => {
@@ -75,45 +76,86 @@ async function fetchWithErrorHandling(url, options = {}) {
   return data;
 }
 
-// Get available slots for a doctor on a date
+// // Get available slots for a doctor on a date
+// export async function getAvailableSlots(doctorId, appDate) {
+//   const url = `${API_BASE_URL}/available_appointment?doctor_id=${doctorId}&app_date=${appDate}`;
+//   return await fetchWithErrorHandling(url);
+// }
+
+// // Reserve a slot
+// export async function reserveSlot(userId, doctorId, appointmentDateTime) {
+//   const appointment = {
+//     doctor_id: doctorId,
+//     appointment_date: appointmentDateTime,
+//   };
+//   const url = `${API_BASE_URL}/reserve_slot?user_id=${userId}`;
+//   return await fetchWithErrorHandling(url, {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify(appointment),
+//   });
+// }
+
+// // Confirm a slot
+// export async function confirmSlot(userId, doctorId, appointmentDateTime) {
+//   const appointment = {
+//     doctor_id: doctorId,
+//     appointment_date: appointmentDateTime,
+//   };
+//   const url = `${API_BASE_URL}/confirm_slot?user_id=${userId}`;
+//   return await fetchWithErrorHandling(url, {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify(appointment),
+//   });
+// }
+
+// // Cancel a reservation
+// export async function cancelSlot(userId, doctorId, appointmentDateTime) {
+//   const url = `${API_BASE_URL}/cancel_slot?doctor_id=${doctorId}&slot_time=${encodeURIComponent(appointmentDateTime)}&user_id=${userId}`;
+//   return await fetchWithErrorHandling(url, { method: "POST" });
+// }
+
+// api.js (TEMPORARY MOCK IMPLEMENTATIONS)
+
+// MOCK: Get available slots for a doctor on a date
 export async function getAvailableSlots(doctorId, appDate) {
-  const url = `${API_BASE_URL}/available_appointment?doctor_id=${doctorId}&app_date=${appDate}`;
-  return await fetchWithErrorHandling(url);
+    console.warn("MOCK API: getAvailableSlots called. Returning dummy slots to bypass backend crash.");
+    
+    // Simulate a successful API call returning valid time slots (HH:MM:SS format)
+    return [
+        "09:00:00",
+        "09:30:00",
+        "10:00:00",
+        "10:30:00",
+        "14:00:00",
+        "14:30:00"
+    ];
 }
 
-// Reserve a slot
+// MOCK: Reserve a slot (Bypasses Redis lock logic)
 export async function reserveSlot(userId, doctorId, appointmentDateTime) {
-  const appointment = {
-    doctor_id: doctorId,
-    appointment_date: appointmentDateTime,
-  };
-  const url = `${API_BASE_URL}/reserve_slot?user_id=${userId}`;
-  return await fetchWithErrorHandling(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(appointment),
-  });
+    console.warn("MOCK API: reserveSlot called. Slot reserved for 300 seconds.");
+    
+    // The frontend expects "expires_in" to calculate remaining hold time
+    return { "message": "Slot reserved", "expires_in": 300 };
 }
 
-// Confirm a slot
+// MOCK: Confirm a slot (Bypasses permanent booking logic)
 export async function confirmSlot(userId, doctorId, appointmentDateTime) {
-  const appointment = {
-    doctor_id: doctorId,
-    appointment_date: appointmentDateTime,
-  };
-  const url = `${API_BASE_URL}/confirm_slot?user_id=${userId}`;
-  return await fetchWithErrorHandling(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(appointment),
-  });
+    console.warn("MOCK API: confirmSlot called. Booking confirmed.");
+    return { "message": "Booking confirmed" };
 }
 
-// Cancel a reservation
+// MOCK: Cancel a reservation (Bypasses Redis key deletion)
 export async function cancelSlot(userId, doctorId, appointmentDateTime) {
-  const url = `${API_BASE_URL}/cancel_slot?doctor_id=${doctorId}&slot_time=${encodeURIComponent(appointmentDateTime)}&user_id=${userId}`;
-  return await fetchWithErrorHandling(url, { method: "POST" });
+    console.warn("MOCK API: cancelSlot called. Reservation cancelled.");
+    return { "message": "Reservation cancelled and slot freed" };
 }
+
+// Note: Ensure your original `fetchWithErrorHandling` and `API_BASE_URL` are still defined in api.js, 
+// as other functions (like login/vitals) may still need them.
+
 
 export async function getUser(token) {
   const res = await fetch(`${API_BASE_URL}/user/me`, {
@@ -322,3 +364,38 @@ export const sendFamilyInvite = async (token, invitee_email, relationship_type) 
     return handleResponse(res); 
     // Assuming handleResponse is a helper that throws an error on !res.ok
 };
+
+export function setupWebSocket(doctorId, handleMessage, setWsStatus) {
+  // Use 'ws:' instead of 'wss:' because API_BASE_URL is 'http:'
+  const protocol = 'ws:'; 
+  const wsUrl = `${protocol}//${API_BASE_URL_without_http}/ws/doctor/${doctorId}/slots`;
+
+  const wsConnection = new WebSocket(wsUrl);
+
+  wsConnection.onopen = () => {
+    setWsStatus('Connected');
+    console.log('WebSocket connected');
+  };
+
+  wsConnection.onclose = () => {
+    setWsStatus('Disconnected');
+    console.log('WebSocket disconnected');
+  };
+
+  wsConnection.onerror = (error) => {
+    setWsStatus('Error');
+    console.error('WebSocket error:', error);
+  };
+
+  wsConnection.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      // Data check removed: let the component handle doctor_id filtering
+      handleMessage(data); 
+    } catch (error) {
+      console.error('Error processing WebSocket message:', error);
+    }
+  };
+
+  return wsConnection;
+}

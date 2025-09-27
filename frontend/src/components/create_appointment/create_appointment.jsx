@@ -1,510 +1,457 @@
-import { useState, useEffect } from "react";
-import { Calendar, Stethoscope, Wifi, WifiOff, Search, CheckCircle, XCircle, Clock, CalendarIcon } from "lucide-react";
-import { Badge } from "./components/ui/badge";
-import { Card } from "./components/ui/card";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
-import { Button } from "./components/ui/button";
-import { Calendar as CalendarComponent } from "./components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./components/ui/dialog";
-import { toast, Toaster } from "sonner@2.0.3";
-import { format } from "date-fns";
-import { ImageWithFallback } from "./components/figma/ImageWithFallback";
-import { getAvailableSlots, reserveSlot, confirmReservation, cancelReservation } from '../../services/api';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import './create_appointment.css';
+import {
+  getAvailableSlots,
+  reserveSlot,
+  confirmSlot,
+  cancelSlot,
+  setupWebSocket,
+} from '../../services/api';
 
-// Types
+const DEFAULT_DOCTOR_ID = 3;
+const DEFAULT_USER_ID = 1;
+
 /**
- * @typedef {Object} TimeSlot
- * @property {string} id
- * @property {string} time
- * @property {boolean} isAvailable
- * @property {boolean} isReservedByUser
+ * Utility to get today's date in YYYY-MM-DD format.
  */
+const getTodayDateString = () => {
+  return new Date().toISOString().split('T')[0];
+};
 
-// Header Component
-function Header() {
-  return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 py-12 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="p-3 bg-blue-500 rounded-full">
-            <Stethoscope className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-gray-800">
-            Doctor Appointment Booking
-          </h1>
-        </div>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Reserve your preferred time slot easily and quickly with our streamlined booking system
-        </p>
-        <div className="mt-8 flex justify-center">
-          <div className="w-24 h-24 rounded-full overflow-hidden shadow-lg">
-            <ImageWithFallback 
-              src="https://images.unsplash.com/photo-1659019479789-4dd5dbdc2cb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2N0b3IlMjBzdGV0aG9zY29wZSUyMG1lZGljYWx8ZW58MXx8fHwxNzU4NzE1MDc4fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-              alt="Medical professional"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const AppointmentBooking = () => {
+  // --- State Variables ---
+  const [doctorId, setDoctorId] = useState(DEFAULT_DOCTOR_ID);
+  const [date, setDate] = useState(getTodayDateString());
+  const [userId, setUserId] = useState(DEFAULT_USER_ID);
+  const [slots, setSlots] = useState([]); // List of available time strings
+  const [reservedSlots, setReservedSlots] = useState({}); // { 'YYYY-MM-DDT...': true }
+  const [selectedTime, setSelectedTime] = useState(null); // The currently selected time string
+  const [ownReservedKey, setOwnReservedKey] = useState(null); // Key for the slot reserved by the current user: 'DOCTOR_ID:DATETIME'
+  const [status, setStatus] = useState({ message: '', type: null }); // { message: '...', type: 'success' | 'error' | null }
+  const [wsStatus, setWsStatus] = useState('Disconnected');
+  const [showModal, setShowModal] = useState(false);
 
-// WebSocket Status Component
-function WebSocketStatus({ isConnected }) {
-  return (
-    <Badge 
-      variant={isConnected ? "default" : "destructive"} 
-      className="flex items-center gap-1 transition-all duration-200"
-    >
-      {isConnected ? (
-        <>
-          <Wifi className="w-3 h-3" />
-          Connected
-        </>
-      ) : (
-        <>
-          <WifiOff className="w-3 h-3" />
-          Disconnected
-        </>
-      )}
-    </Badge>
-  );
-}
+  // Use a ref to hold the WebSocket connection so it persists across renders
+  const wsRef = useRef(null);
 
-// Booking Form Component
-function BookingForm({
-  doctorId,
-  setDoctorId,
-  userId,
-  setUserId,
-  selectedDate,
-  setSelectedDate,
-  onLoadSlots,
-  isLoading,
-  isConnected
-}) {
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  // --- Status and Utility Functions ---
 
-  return (
-    <Card className="p-6 shadow-lg border-0 bg-white">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-gray-800">Book Appointment</h2>
-          <WebSocketStatus isConnected={isConnected} />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="doctorId" className="text-gray-700">Doctor ID</Label>
-            <Input
-              id="doctorId"
-              type="number"
-              placeholder="Enter doctor ID"
-              value={doctorId}
-              onChange={(e) => setDoctorId(e.target.value)}
-              className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 hover:bg-white"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="userId" className="text-gray-700">User ID</Label>
-            <Input
-              id="userId"
-              type="number"
-              placeholder="Enter your user ID"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 hover:bg-white"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-gray-700">Appointment Date</Label>
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left transition-all duration-200 hover:bg-gray-50 bg-gray-50 hover:border-blue-300"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 text-gray-500" />
-                {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <CalendarComponent
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  setSelectedDate(date);
-                  setCalendarOpen(false);
-                }}
-                disabled={(date) => date < new Date()}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <Button
-          onClick={onLoadSlots}
-          disabled={!doctorId || !selectedDate || isLoading}
-          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-[1.02] disabled:transform-none disabled:opacity-50"
-        >
-          <Search className="mr-2 h-4 w-4" />
-          {isLoading ? "Loading..." : "Load Available Slots"}
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-// Time Slots Component
-function TimeSlots({
-  slots,
-  selectedSlot,
-  onSlotSelect,
-  onReserveSlot,
-  onConfirmReservation,
-  onCancelReservation,
-  isLoading
-}) {
-  if (slots.length === 0) {
-    return (
-      <Card className="p-8 text-center bg-gray-50 border-dashed">
-        <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-600 mb-2">No slots loaded</h3>
-        <p className="text-gray-500">Please select a doctor and date to view available slots</p>
-      </Card>
-    );
-  }
-
-  const selectedSlotData = slots.find(slot => slot.id === selectedSlot);
-  const reservedByUserSlot = slots.find(slot => slot.isReservedByUser);
-
-  return (
-    <Card className="p-6 shadow-lg border-0 bg-white">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-gray-800">Available Time Slots</h2>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-200 rounded-full border"></div>
-              <span className="text-sm text-gray-600">Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Reserved</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">Selected</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {slots.map((slot) => {
-            const isSelected = selectedSlot === slot.id;
-            const isReserved = !slot.isAvailable && !slot.isReservedByUser;
-            const isReservedByUser = slot.isReservedByUser;
-            
-            return (
-              <Button
-                key={slot.id}
-                variant="outline"
-                disabled={isReserved || isLoading}
-                onClick={() => onSlotSelect(slot.id)}
-                className={`
-                  h-12 transition-all duration-200 transform hover:scale-105 active:scale-95
-                  ${isSelected ? 'bg-green-500 text-white border-green-500 hover:bg-green-600' : ''}
-                  ${isReserved ? 'bg-red-500 text-white border-red-500 cursor-not-allowed opacity-75' : ''}
-                  ${isReservedByUser ? 'bg-blue-500 text-white border-blue-500 hover:bg-blue-600' : ''}
-                  ${!isSelected && !isReserved && !isReservedByUser ? 'bg-gray-50 hover:bg-gray-100 border-gray-200' : ''}
-                `}
-              >
-                {slot.time}
-              </Button>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-wrap gap-3 pt-4 border-t">
-          <Button
-            onClick={onReserveSlot}
-            disabled={!selectedSlot || isLoading || selectedSlotData?.isReservedByUser}
-            className="bg-blue-500 hover:bg-blue-600 transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Reserve Selected Slot
-          </Button>
-
-          <Button
-            onClick={onConfirmReservation}
-            disabled={!reservedByUserSlot || isLoading}
-            variant="outline"
-            className="border-green-500 text-green-600 hover:bg-green-50 transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Confirm Reservation
-          </Button>
-
-          <Button
-            onClick={onCancelReservation}
-            disabled={!reservedByUserSlot || isLoading}
-            variant="outline"
-            className="border-red-500 text-red-600 hover:bg-red-50 transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            Cancel Reservation
-          </Button>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-// Confirmation Modal Component
-function ConfirmationModal({
-  isOpen,
-  onClose,
-  slotTime,
-  onConfirm,
-  onCancel,
-  action
-}) {
-  const getActionText = () => {
-    switch (action) {
-      case 'reserve':
-        return {
-          title: 'Reserve Time Slot',
-          description: `Do you want to reserve the ${slotTime} time slot?`,
-          confirmText: 'Reserve',
-          confirmIcon: <Clock className="mr-2 h-4 w-4" />,
-          confirmClass: 'bg-blue-500 hover:bg-blue-600'
-        };
-      case 'confirm':
-        return {
-          title: 'Confirm Reservation',
-          description: `Please confirm your reservation for ${slotTime}. This action cannot be undone.`,
-          confirmText: 'Confirm',
-          confirmIcon: <CheckCircle className="mr-2 h-4 w-4" />,
-          confirmClass: 'bg-green-500 hover:bg-green-600'
-        };
-      case 'cancel':
-        return {
-          title: 'Cancel Reservation',
-          description: `Are you sure you want to cancel your reservation for ${slotTime}?`,
-          confirmText: 'Cancel Reservation',
-          confirmIcon: <XCircle className="mr-2 h-4 w-4" />,
-          confirmClass: 'bg-red-500 hover:bg-red-600'
-        };
-    }
-  };
-
-  const actionData = getActionText();
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {actionData.confirmIcon}
-            {actionData.title}
-          </DialogTitle>
-          <DialogDescription className="text-base pt-2">
-            {actionData.description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex gap-2 pt-4">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="transition-all duration-200 hover:bg-gray-50"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            className={`${actionData.confirmClass} transition-all duration-200 transform hover:scale-105`}
-          >
-            {actionData.confirmIcon}
-            {actionData.confirmText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Mock WebSocket connection hook
-const useMockWebSocket = () => {
-  const [isConnected, setIsConnected] = useState(false);
-
-  useEffect(() => {
-    // Simulate connection after 1 second
-    const timer = setTimeout(() => {
-      setIsConnected(true);
-      toast.success("Connected to booking system");
-    }, 1000);
-
-    return () => clearTimeout(timer);
+  /**
+   * Displays a status message temporarily.
+   */
+  const showStatus = useCallback((message, isError = false) => {
+    setStatus({ message, type: isError ? 'error' : 'success' });
+    setTimeout(() => {
+      setStatus({ message: '', type: null });
+    }, 5000);
   }, []);
 
-  return { isConnected };
-};
+  // --- Core Logic Functions ---
 
-// Mock time slots data generator
-const generateMockSlots = () => {
-  const slots = [];
-  const startHour = 9;
-  const endHour = 17;
-  
-  for (let hour = startHour; hour < endHour; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      slots.push({
-        id: `${hour}-${minute}`,
-        time,
-        isAvailable: Math.random() > 0.3, // 70% chance of being available
-        isReservedByUser: false
-      });
+  /**
+   * Updates the slots state based on a new WebSocket message.
+   */
+  const handleWebSocketMessage = useCallback((data) => {
+    const slotTime = data.slot_time.substring(11, 19); // "HH:MM:SS"
+    const key = `${doctorId}:${data.slot_time}`;
+
+    setReservedSlots((prev) => {
+      const newReserved = { ...prev };
+      if (data.action === 'reserved') {
+        newReserved[key] = true;
+        showStatus(`Slot ${slotTime} was reserved by another user`);
+        // If another user reserved the selected slot, clear selection
+        if (selectedTime === slotTime && ownReservedKey !== key) {
+          setSelectedTime(null);
+        }
+      } else if (data.action === 'freed') {
+        delete newReserved[key];
+        showStatus(`Slot ${slotTime} is now available`);
+      }
+      return newReserved;
+    });
+  }, [doctorId, ownReservedKey, selectedTime, showStatus]);
+
+  /**
+   * Disconnects the old WS and connects a new one.
+   */
+  const connectWebSocket = useCallback((newDoctorId) => {
+    if (wsRef.current) {
+      wsRef.current.close();
     }
-  }
-  
-  return slots;
-};
+    // Only connect if we have a valid doctorId
+    if (newDoctorId) {
+      wsRef.current = setupWebSocket(newDoctorId, handleWebSocketMessage, setWsStatus);
+    }
+  }, [handleWebSocketMessage]);
 
-// Main App Component
-export default function App() {
-  const [doctorId, setDoctorId] = useState("");
-  const [userId, setUserId] = useState("");
-  const [selectedDate, setSelectedDate] = useState();
-  const [slots, setSlots] = useState([]);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalAction, setModalAction] = useState("reserve");
-
-  const { isConnected } = useMockWebSocket();
-
+  /**
+   * Fetches available slots from the backend.
+   */
   const handleLoadSlots = async () => {
-    if (!doctorId || !selectedDate) {
-      toast.error("Please fill in all required fields");
+    if (!doctorId || !date || !userId) {
+      showStatus('Please fill in all fields', true);
       return;
     }
 
-    setIsLoading(true);
-    toast.loading("Loading available slots...");
-
     try {
-    const formattedDate = format(selectedDate, "yyyy-MM-dd");
-    const response = await getAvailableSlots(doctorId, formattedDate);
+      // 1. Load available slots
+      const availableTimes = await getAvailableSlots(doctorId, date);
 
-    setSlots(response.data.slots); // adjust based on backend response
-    setSelectedSlot(null);
-        toast.success(`Found ${response.data.slots.length} slots`);
-    } catch (err) {
-        toast.error("Failed to load slots");
-    } finally {
-        setIsLoading(false);
-        toast.dismiss();
+      // 2. Clear previous state
+      setSlots(availableTimes);
+      setReservedSlots({});
+      setSelectedTime(null);
+      setOwnReservedKey(null);
+      setShowModal(false);
+
+      // 3. Setup WebSocket for real-time updates
+      // connectWebSocket(doctorId);
+
+      showStatus(`Loaded ${availableTimes.length} available slots`);
+    } catch (error) {
+      console.error('Failed to load slots:', error);
+      setSlots([]);
     }
   };
 
-  const handleSlotSelect = (slotId) => {
-    setSelectedSlot(selectedSlot === slotId ? null : slotId);
-  };
+  /**
+   * Handles user click on a time slot.
+   */
+  const handleSlotClick = (time) => {
+    const key = `${doctorId}:${date}T${time}`;
 
-  const handleReserveSlot = () => {
-    if (!selectedSlot) return;
-    setModalAction('reserve');
-    setModalOpen(true);
-  };
-
-  const handleConfirmReservation = () => {
-    setModalAction('confirm');
-    setModalOpen(true);
-  };
-
-  const handleCancelReservation = () => {
-    setModalAction('cancel');
-    setModalOpen(true);
-  };
-
-  const handleModalConfirm = async () => {
-    try {
-          if (modalAction === "reserve" && selectedSlot) {
-              await reserveSlot(userId, selectedSlot);
-              toast.success("Slot reserved successfully!");
-          }
-      else if (modalAction === "confirm") {
-          const reserved = slots.find(slot => slot.isReservedByUser);
-          await confirmReservation(userId, reserved.id);
-          toast.success("Reservation confirmed!");
-      }
-      else if (modalAction === "cancel") {
-          const reserved = slots.find(slot => slot.isReservedByUser);
-          await cancelReservation(userId, reserved.id);
-          toast.success("Reservation cancelled!");
-      }
-      handleLoadSlots(); // refresh slots
-    }catch (err) {
-      toast.error("Action failed");
-    } finally {
-      setModalOpen(false);
+    // 1. Block if slot reserved by others
+    if (reservedSlots[key] && ownReservedKey !== key) {
+      showStatus('This slot is already reserved by another user', true);
+      return;
     }
-};
 
+    // 2. If slot is reserved by self, open modal
+    if (ownReservedKey === key) {
+      setShowModal(true);
+      return;
+    }
 
-  const selectedSlotData = slots.find(slot => slot.id === selectedSlot);
+    // 3. Otherwise, select the slot
+    setSelectedTime(time === selectedTime ? null : time);
+  };
+
+  /**
+   * Sends a request to reserve the selected slot.
+   */
+  const handleReserveSlot = async () => {
+    if (!selectedTime) {
+      showStatus('Please select a slot first', true);
+      return;
+    }
+
+    const appointmentDateTime = `${date}T${selectedTime}`;
+
+    try {
+      const result = await reserveSlot(userId, doctorId, appointmentDateTime, showStatus);
+
+      const reservedKey = `${doctorId}:${appointmentDateTime}`;
+      setOwnReservedKey(reservedKey);
+      setReservedSlots(prev => ({ ...prev, [reservedKey]: true }));
+      showStatus(`Slot reserved! Expires in ${result.expires_in} seconds`);
+
+      // Mark slot as reserved by self and open modal
+      setSelectedTime(null);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Failed to reserve slot:', error);
+    }
+  };
+
+  /**
+   * Sends a request to confirm the reserved slot.
+   */
+  const handleConfirmSlot = async () => {
+    if (!ownReservedKey) {
+      showStatus('No reserved slot to confirm', true);
+      return;
+    }
+
+    try {
+      // ownReservedKey is 'DOCTOR_ID:DATETIME', split it up
+      const [docId, dateTime] = ownReservedKey.split(':');
+      await confirmSlot(userId, docId, dateTime, showStatus);
+
+      showStatus('Booking confirmed successfully! 🎉');
+      setOwnReservedKey(null);
+      setShowModal(false);
+      // Reload slots after confirmation to reflect permanent booking status (optional, but good for cleanliness)
+      setTimeout(handleLoadSlots, 1000);
+    } catch (error) {
+      console.error('Failed to confirm slot:', error);
+    }
+  };
+
+  /**
+   * Sends a request to cancel the reserved slot.
+   */
+  const handleCancelSlot = async () => {
+    if (!ownReservedKey) {
+      showStatus('No reserved slot to cancel', true);
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel this reservation?')) return;
+
+    try {
+      // ownReservedKey is 'DOCTOR_ID:DATETIME', split it up
+      const [docId, dateTime] = ownReservedKey.split(':');
+      await cancelSlot(userId, docId, dateTime, showStatus);
+
+      showStatus('Reservation cancelled successfully');
+      setOwnReservedKey(null);
+      setShowModal(false);
+      // Reload slots to reflect the slot is now free
+      setTimeout(handleLoadSlots, 1000);
+    } catch (error) {
+      console.error('Failed to cancel slot:', error);
+    }
+  };
+
+  // --- Effects and Cleanup ---
+
+  // Cleanup effect: Close WebSocket when the component unmounts
+  useEffect(() => {
+    return () => {
+      // if (wsRef.current) {
+      //   wsRef.current.close();
+      // }
+    };
+  }, []);
+
+  // --- Render Functions ---
+
+  const wsStatusClass = wsStatus === 'Connected' ? 'connected' : 'disconnected';
+  const selectedSlotTime = ownReservedKey ? ownReservedKey.split('T')[1].substring(0, 5) : selectedTime;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        <BookingForm
-          doctorId={doctorId}
-          setDoctorId={setDoctorId}
-          userId={userId}
-          setUserId={setUserId}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          onLoadSlots={handleLoadSlots}
-          isLoading={isLoading}
-          isConnected={isConnected}
-        />
-
-        <TimeSlots
-          slots={slots}
-          selectedSlot={selectedSlot}
-          onSlotSelect={handleSlotSelect}
-          onReserveSlot={handleReserveSlot}
-          onConfirmReservation={handleConfirmReservation}
-          onCancelReservation={handleCancelReservation}
-          isLoading={isLoading}
-        />
+    <div className="appointment-container">
+      {/* Hero Section */}
+      <div className="hero-section">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            <span className="title-icon">🩺</span>
+            Book Your Appointment
+          </h1>
+          <p className="hero-subtitle">Schedule your consultation with our expert doctors</p>
+        </div>
+        <div className="hero-decoration">
+          <div className="floating-card">
+            <div className="card-icon">📅</div>
+            <div className="card-text">Easy Booking</div>
+          </div>
+          <div className="floating-card delayed">
+            <div className="card-icon">⚡</div>
+            <div className="card-text">Real-time</div>
+          </div>
+        </div>
       </div>
 
-      <ConfirmationModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        slotTime={selectedSlotData?.time || slots.find(slot => slot.isReservedByUser)?.time || null}
-        onConfirm={handleModalConfirm}
-        onCancel={() => setModalOpen(false)}
-        action={modalAction}
-      />
+      {/* Main Content */}
+      <div className="main-content">
+        {/* Booking Form */}
+        <div className="booking-form-card">
+          <div className="card-header">
+            <h2>Appointment Details</h2>
+            <div className={`websocket-indicator ${wsStatusClass}`}>
+              <div className="status-dot"></div>
+              <span>{wsStatus}</span>
+            </div>
+          </div>
 
-      <Toaster 
-        position="top-right" 
-        richColors 
-        expand 
-        closeButton 
-      />
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="doctorIdInput">
+                <span className="label-icon">👨‍⚕️</span>
+                Doctor ID
+              </label>
+              <div className="input-wrapper">
+                <input
+                  id="doctorIdInput"
+                  type="number"
+                  value={doctorId}
+                  onChange={(e) => setDoctorId(parseInt(e.target.value, 10) || '')}
+                  placeholder="Enter doctor ID"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="dateInput">
+                <span className="label-icon">📅</span>
+                Appointment Date
+              </label>
+              <div className="input-wrapper">
+                <input
+                  id="dateInput"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="userIdInput">
+                <span className="label-icon">👤</span>
+                User ID
+              </label>
+              <div className="input-wrapper">
+                <input
+                  id="userIdInput"
+                  type="number"
+                  value={userId}
+                  onChange={(e) => setUserId(parseInt(e.target.value, 10) || '')}
+                  placeholder="Enter user ID"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="load-slots-section">
+            <button className="load-slots-btn" onClick={handleLoadSlots}>
+              <span className="btn-icon">🔄</span>
+              Load Available Slots
+            </button>
+          </div>
+        </div>
+
+        {/* Time Slots Section */}
+        <div className="slots-section">
+          <div className="slots-header">
+            <h3>
+              <span className="header-icon">⏰</span>
+              Available Time Slots
+            </h3>
+            {slots.length > 0 && (
+              <div className="slots-count">
+                {slots.length} slots available
+              </div>
+            )}
+          </div>
+
+          <div className="slots-container" id="slotsContainer">
+            {slots.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <p>Click "Load Available Slots" to see available appointments</p>
+              </div>
+            ) : (
+              <div className="slots-grid">
+                {slots.map((time) => {
+                  const key = `${doctorId}:${date}T${time}`;
+                  const isReserved = !!reservedSlots[key];
+                  const isSelected = selectedTime === time;
+                  const isOwnReserved = ownReservedKey === key;
+                  
+                  let className = 'time-slot';
+                  if (isReserved && !isOwnReserved) className += ' reserved';
+                  if (isSelected) className += ' selected';
+                  if (isOwnReserved) className += ' own-reserved';
+
+                  return (
+                    <div
+                      key={time}
+                      className={className}
+                      data-time={time}
+                      data-key={key}
+                      onClick={() => handleSlotClick(time)}
+                    >
+                      <div className="slot-time">{time}</div>
+                      {isOwnReserved && <div className="slot-badge">Your Hold</div>}
+                      {isReserved && !isOwnReserved && <div className="slot-badge reserved-badge">Reserved</div>}
+                      <div className="slot-hover-effect"></div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="actions-section">
+          <button 
+            className="action-btn primary"
+            onClick={handleReserveSlot} 
+            disabled={!selectedTime || !!ownReservedKey}
+          >
+            <span className="btn-icon">📌</span>
+            Reserve Selected Slot
+          </button>
+          
+          <button
+            className="action-btn secondary"
+            onClick={() => setShowModal(true)}
+            disabled={!ownReservedKey}
+          >
+            <span className="btn-icon">✅</span>
+            Manage Reserved Slot
+          </button>
+        </div>
+      </div>
+
+      {/* Status Toast */}
+      <div 
+        className={`status-toast ${status.type} ${status.message ? 'show' : ''}`}
+        aria-live="polite"
+      >
+        <div className="toast-icon">
+          {status.type === 'success' ? '✅' : '⚠️'}
+        </div>
+        <div className="toast-message">{status.message}</div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Manage Your Reservation</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="reservation-info">
+                <div className="time-display">
+                  <span className="time-icon">⏰</span>
+                  <span className="time-text" id="modalTime">{selectedSlotTime}</span>
+                </div>
+                <p>Your slot is reserved. What would you like to do?</p>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button className="modal-btn confirm" onClick={handleConfirmSlot}>
+                <span className="btn-icon">✅</span>
+                Confirm Booking
+              </button>
+              <button className="modal-btn cancel" onClick={handleCancelSlot}>
+                <span className="btn-icon">❌</span>
+                Cancel Reservation
+              </button>
+              <button className="modal-btn neutral" onClick={() => setShowModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Background Decorations */}
+      <div className="bg-decoration decoration-1"></div>
+      <div className="bg-decoration decoration-2"></div>
+      <div className="bg-decoration decoration-3"></div>
     </div>
   );
-}
+};
+
+export default AppointmentBooking;

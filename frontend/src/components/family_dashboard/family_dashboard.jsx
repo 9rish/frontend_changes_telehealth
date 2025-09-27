@@ -94,6 +94,7 @@ export default function FamilyDashboard() {
                     
                     {/* Assuming you have a separate component for sending invites */}
                     <button onClick={() => navigate("/family/send-invite")}>Send Family Invite</button>
+                    {/* <button onClick={loadData} className="refresh-btn">Refresh Family List</button> */}
 
                     <button className="logout-btn" onClick={handleLogout}>Logout</button>
                 </div>
