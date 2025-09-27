@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import './patient_dashboard.css';
-import { getUser, getVitals, getAllAppointments, getFamilyMembers } from '../../services/api';
+import { getUser, getVitals, getAllAppointments, getFamilyMembers, getPatientAppointments } from '../../services/api';
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -44,7 +44,7 @@ export default function PatientDashboard() {
         setVitals(vitalsData);
 
         // Load appointments data
-        const appointmentsData = await getAllAppointments();
+        const appointmentsData = await getPatientAppointments(token);
         
         // Load family members data
         const familyData = await getFamilyMembers(token);

@@ -323,13 +323,13 @@ export const addPatientVitals = async (patient_email, bp) => {
     return handleResponse(res);
 };
 
-export const getAllAppointments = async () => {
-    const token = sessionStorage.getItem("token");
-    const res = await fetch(`${API_BASE_URL}/get_all_appointments`, {
-        headers: { "Authorization": "Bearer " + token }
-    });
-    return handleResponse(res);
-};
+// export const getAllAppointments = async () => {
+//     const token = sessionStorage.getItem("token");
+//     const res = await fetch(`${API_BASE_URL}/get_all_appointments`, {
+//         headers: { "Authorization": "Bearer " + token }
+//     });
+//     return handleResponse(res);
+// };
 
 export const respondToAppointment = async (appointment_id, action) => {
     const token = sessionStorage.getItem("token");
@@ -399,3 +399,67 @@ export function setupWebSocket(doctorId, handleMessage, setWsStatus) {
 
   return wsConnection;
 }
+
+// export const removeFamilyMember = async (token, memberId) => {
+//   const response = await fetch(`${API_BASE_URL}/family/remove_family_member/${memberId}`, {
+//     method: 'DELETE',
+//     headers: {
+//       'Authorization': `Bearer ${token}`,
+//       'Content-Type': 'application/json'
+//     }
+//   });
+  
+//   if (!response.ok) {
+//     throw new Error('Failed to remove family member');
+//   }
+  
+//   return response.json();
+// };
+// api.js (TEMPORARY MOCK)
+
+// Assuming your remove function looks like this:
+export async function removeFamilyMember(token, memberId) {
+    console.warn("MOCK API: removeFamilyMember called. Simulating successful removal.");
+    
+    // Simulate the successful response the frontend expects for deletion.
+    return { 
+        "message": `Family member ${memberId} successfully removed.` 
+    };
+    
+    // Original code (UNMOCK THIS WHEN BACKEND IS FIXED):
+    /*
+    const res = await fetch(`${API_BASE_URL}/family/remove_family_member/${memberId}`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token },
+    });
+    return handleResponse(res);
+    */
+}
+
+// api.js
+
+export async function getPatientAppointments(token) {
+    const res = await fetch(`${API_BASE_URL}/patient/appointments`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    return handleResponse(res); // Assuming handleResponse handles 401/403 errors
+}
+
+// Update the getAllAppointments function to explicitly take the token if it needs it 
+// (though it likely gets the token from sessionStorage in your existing implementation).
+// Ensure it passes the token in the headers if it relies on auth:
+// Ensure this is the only definition of getAllAppointments in your file:
+
+export const getAllAppointments = async (token) => { // Adding token as explicit parameter
+    const tokenToUse = token || sessionStorage.getItem("token"); // Fallback
+    
+    // Check if token exists before making the call
+    if (!tokenToUse) {
+        throw new Error("Authorization token is missing.");
+    }
+    
+    const res = await fetch(`${API_BASE_URL}/get_all_appointments`, {
+        headers: { "Authorization": "Bearer " + tokenToUse }
+    });
+    return handleResponse(res);
+};
