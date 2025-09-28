@@ -19,6 +19,9 @@ const getTodayDateString = () => {
 };
 
 const AppointmentBooking = () => {
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
   // --- State Variables ---
   const [doctorId, setDoctorId] = useState(DEFAULT_DOCTOR_ID);
   const [date, setDate] = useState(getTodayDateString());
@@ -45,6 +48,25 @@ const AppointmentBooking = () => {
       setStatus({ message: '', type: null });
     }, 5000);
   }, []);
+
+  // --- Sidebar Navigation Functions ---
+  const handleNavigation = (page) => {
+    console.log(`Navigating to: ${page}`);
+    if (page === 'dashboard') {
+      // Navigate to patient dashboard
+      window.location.href = '/patient_dashboard.html';
+    }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      // Clear any stored user data
+      localStorage.clear();
+      sessionStorage.clear();
+      // Navigate to login page
+      window.location.href = '/login.html';
+    }
+  };
 
   // --- Core Logic Functions ---
 
@@ -232,168 +254,225 @@ const AppointmentBooking = () => {
 
   return (
     <div className="appointment-container">
-      {/* Hero Section */}
-      <div className="hero-section">
-        <div className="hero-content">
-          <h1 className="hero-title">
-            <span className="title-icon">🩺</span>
-            Book Your Appointment
-          </h1>
-          <p className="hero-subtitle">Schedule your consultation with our expert doctors</p>
+      {/* Sidebar */}
+      <div className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        {/* Sidebar Header */}
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <div className="brand-icon">🩺</div>
+            <div className="brand-text">
+              <h3>MediBook</h3>
+              <p>Healthcare Portal</p>
+            </div>
+          </div>
+          <button className="sidebar-close" onClick={() => setSidebarOpen(false)}>
+            ×
+          </button>
         </div>
-        <div className="hero-decoration">
-          <div className="floating-card">
-            <div className="card-icon">📅</div>
-            <div className="card-text">Easy Booking</div>
+
+        {/* User Profile */}
+        <div className="sidebar-user">
+          <div className="user-avatar">👤</div>
+          <div className="user-info">
+            <p className="user-name">Patient Portal</p>
+            <p className="user-id">ID: {DEFAULT_USER_ID}</p>
           </div>
-          <div className="floating-card delayed">
-            <div className="card-icon">⚡</div>
-            <div className="card-text">Real-time</div>
-          </div>
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="sidebar-nav">
+          <button className="nav-item" onClick={() => handleNavigation('dashboard')}>
+            <span className="nav-icon">🏠</span>
+            <span className="nav-label">Dashboard</span>
+          </button>
+          <button className="nav-item active">
+            <span className="nav-icon">📅</span>
+            <span className="nav-label">Book Appointment</span>
+          </button>
+        </nav>
+
+        {/* Logout */}
+        <div className="sidebar-footer">
+          <button className="nav-item logout-btn" onClick={handleLogout}>
+            <span className="nav-icon">🚪</span>
+            <span className="nav-label">Logout</span>
+          </button>
         </div>
       </div>
 
+      {/* Mobile Overlay */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)}></div>}
+
       {/* Main Content */}
-      <div className="main-content">
-        {/* Booking Form */}
-        <div className="booking-form-card">
-          <div className="card-header">
-            <h2>Appointment Details</h2>
-            <div className={`websocket-indicator ${wsStatusClass}`}>
-              <div className="status-dot"></div>
-              <span>{wsStatus}</span>
-            </div>
-          </div>
-
-          <div className="form-grid">
-            <div className="form-group">
-              <label htmlFor="doctorIdInput">
-                <span className="label-icon">👨‍⚕️</span>
-                Doctor ID
-              </label>
-              <div className="input-wrapper">
-                <input
-                  id="doctorIdInput"
-                  type="number"
-                  value={doctorId}
-                  onChange={(e) => setDoctorId(parseInt(e.target.value, 10) || '')}
-                  placeholder="Enter doctor ID"
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="dateInput">
-                <span className="label-icon">📅</span>
-                Appointment Date
-              </label>
-              <div className="input-wrapper">
-                <input
-                  id="dateInput"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="userIdInput">
-                <span className="label-icon">👤</span>
-                User ID
-              </label>
-              <div className="input-wrapper">
-                <input
-                  id="userIdInput"
-                  type="number"
-                  value={userId}
-                  onChange={(e) => setUserId(parseInt(e.target.value, 10) || '')}
-                  placeholder="Enter user ID"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="load-slots-section">
-            <button className="load-slots-btn" onClick={handleLoadSlots}>
-              <span className="btn-icon">🔄</span>
-              Load Available Slots
+      <div className={`main-wrapper ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        {/* Top Navigation */}
+        <div className="top-nav">
+          <div className="nav-left">
+            <button className="sidebar-toggle" onClick={() => setSidebarOpen(true)}>
+              ☰
+            </button>
+            <button className="back-btn" onClick={() => handleNavigation('dashboard')}>
+              ← Back to Dashboard
             </button>
           </div>
-        </div>
-
-        {/* Time Slots Section */}
-        <div className="slots-section">
-          <div className="slots-header">
-            <h3>
-              <span className="header-icon">⏰</span>
-              Available Time Slots
-            </h3>
-            {slots.length > 0 && (
-              <div className="slots-count">
-                {slots.length} slots available
-              </div>
-            )}
-          </div>
-
-          <div className="slots-container" id="slotsContainer">
-            {slots.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <p>Click "Load Available Slots" to see available appointments</p>
-              </div>
-            ) : (
-              <div className="slots-grid">
-                {slots.map((time) => {
-                  const key = `${doctorId}:${date}T${time}`;
-                  const isReserved = !!reservedSlots[key];
-                  const isSelected = selectedTime === time;
-                  const isOwnReserved = ownReservedKey === key;
-                  
-                  let className = 'time-slot';
-                  if (isReserved && !isOwnReserved) className += ' reserved';
-                  if (isSelected) className += ' selected';
-                  if (isOwnReserved) className += ' own-reserved';
-
-                  return (
-                    <div
-                      key={time}
-                      className={className}
-                      data-time={time}
-                      data-key={key}
-                      onClick={() => handleSlotClick(time)}
-                    >
-                      <div className="slot-time">{time}</div>
-                      {isOwnReserved && <div className="slot-badge">Your Hold</div>}
-                      {isReserved && !isOwnReserved && <div className="slot-badge reserved-badge">Reserved</div>}
-                      <div className="slot-hover-effect"></div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="nav-center">
+            <h1 className="page-title">Book Appointment</h1>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="actions-section">
-          <button 
-            className="action-btn primary"
-            onClick={handleReserveSlot} 
-            disabled={!selectedTime || !!ownReservedKey}
-          >
-            <span className="btn-icon">📌</span>
-            Reserve Selected Slot
-          </button>
-          
-          <button
-            className="action-btn secondary"
-            onClick={() => setShowModal(true)}
-            disabled={!ownReservedKey}
-          >
-            <span className="btn-icon">✅</span>
-            Manage Reserved Slot
-          </button>
+        {/* Hero Section */}
+        <div className="hero-section">
+          <div className="hero-content">
+            <h1 className="hero-title">
+              <span className="title-icon">🩺</span>
+              Book Your Appointment
+            </h1>
+            <p className="hero-subtitle">Schedule your consultation with our expert doctors</p>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="main-content">
+          {/* Booking Form */}
+          <div className="booking-form-card">
+            <div className="card-header">
+              <h2>Appointment Details</h2>
+              <div className={`websocket-indicator ${wsStatusClass}`}>
+                <div className="status-dot"></div>
+                <span>{wsStatus}</span>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label htmlFor="doctorIdInput">
+                  <span className="label-icon">👨‍⚕️</span>
+                  Doctor ID
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    id="doctorIdInput"
+                    type="number"
+                    value={doctorId}
+                    onChange={(e) => setDoctorId(parseInt(e.target.value, 10) || '')}
+                    placeholder="Enter doctor ID"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="dateInput">
+                  <span className="label-icon">📅</span>
+                  Appointment Date
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    id="dateInput"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="userIdInput">
+                  <span className="label-icon">👤</span>
+                  User ID
+                </label>
+                <div className="input-wrapper">
+                  <input
+                    id="userIdInput"
+                    type="number"
+                    value={userId}
+                    onChange={(e) => setUserId(parseInt(e.target.value, 10) || '')}
+                    placeholder="Enter user ID"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="load-slots-section">
+              <button className="load-slots-btn" onClick={handleLoadSlots}>
+                <span className="btn-icon">🔄</span>
+                Load Available Slots
+              </button>
+            </div>
+          </div>
+
+          {/* Time Slots Section */}
+          <div className="slots-section">
+            <div className="slots-header">
+              <h3>
+                <span className="header-icon">⏰</span>
+                Available Time Slots
+              </h3>
+              {slots.length > 0 && (
+                <div className="slots-count">
+                  {slots.length} slots available
+                </div>
+              )}
+            </div>
+
+            <div className="slots-container" id="slotsContainer">
+              {slots.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📋</div>
+                  <p>Click "Load Available Slots" to see available appointments</p>
+                </div>
+              ) : (
+                <div className="slots-grid">
+                  {slots.map((time) => {
+                    const key = `${doctorId}:${date}T${time}`;
+                    const isReserved = !!reservedSlots[key];
+                    const isSelected = selectedTime === time;
+                    const isOwnReserved = ownReservedKey === key;
+                    
+                    let className = 'time-slot';
+                    if (isReserved && !isOwnReserved) className += ' reserved';
+                    if (isSelected) className += ' selected';
+                    if (isOwnReserved) className += ' own-reserved';
+
+                    return (
+                      <div
+                        key={time}
+                        className={className}
+                        data-time={time}
+                        data-key={key}
+                        onClick={() => handleSlotClick(time)}
+                      >
+                        <div className="slot-time">{time}</div>
+                        {isOwnReserved && <div className="slot-badge">Your Hold</div>}
+                        {isReserved && !isOwnReserved && <div className="slot-badge reserved-badge">Reserved</div>}
+                        <div className="slot-hover-effect"></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="actions-section">
+            <button 
+              className="action-btn primary"
+              onClick={handleReserveSlot} 
+              disabled={!selectedTime || !!ownReservedKey}
+            >
+              <span className="btn-icon">📌</span>
+              Reserve Selected Slot
+            </button>
+            
+            <button
+              className="action-btn secondary"
+              onClick={() => setShowModal(true)}
+              disabled={!ownReservedKey}
+            >
+              <span className="btn-icon">✅</span>
+              Manage Reserved Slot
+            </button>
+          </div>
         </div>
       </div>
 

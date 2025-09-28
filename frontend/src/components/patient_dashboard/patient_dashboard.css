@@ -92,12 +92,11 @@ body {
     border-right: 1px solid #475569;
     flex-shrink: 0;
     height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 100;
+    position: relative;
+    z-index: 1;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
+    overflow-y: auto;
 }
 
 .logo {
@@ -213,15 +212,15 @@ body {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-/* Main Content */
+/* Main Content - Fixed positioning */
 .main-content {
     flex: 1;
     padding: 0;
     overflow-y: auto;
-    margin-left: 300px;
     height: 100vh;
     background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
     position: relative;
+    z-index: 1;
 }
 
 .top-header {
@@ -233,7 +232,7 @@ body {
     border-bottom: 1px solid #475569;
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: 10;
     backdrop-filter: blur(20px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
@@ -572,13 +571,19 @@ body {
         order: 2;
         border-right: none;
         border-top: 1px solid #475569;
+        z-index: 20;
     }
 
     .main-content {
         flex-grow: 1;
         overflow-y: auto;
         margin-left: 0;
+        width: 100%;
         order: 1;
+    }
+
+    .patient-dashboard {
+        flex-direction: column;
     }
 
     .nav-menu {
